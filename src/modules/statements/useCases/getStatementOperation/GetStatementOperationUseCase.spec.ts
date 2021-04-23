@@ -1,10 +1,9 @@
 import { AppError } from "../../../../shared/errors/AppError";
 import { InMemoryUsersRepository } from "../../../users/repositories/in-memory/InMemoryUsersRepository";
 import { InMemoryStatementsRepository } from "../../repositories/in-memory/InMemoryStatementsRepository";
+import { GetStatementOperationUseCase } from "./GetStatementOperationUseCase";
 
-import { CreateStatementUseCase } from "./CreateStatementUseCase";
-
-let createStatementUseCase: CreateStatementUseCase;
+let getStatementOperationUseCase: GetStatementOperationUseCase;
 let inMemoryStatementsRepository: InMemoryStatementsRepository;
 let inMemoryUsersRepository: InMemoryUsersRepository;
 
@@ -13,57 +12,58 @@ enum OperationType {
   WITHDRAW = 'withdraw',
 }
 
-describe("Create Statement", () => {
+describe("Get Balance", () => {
   beforeEach(() => {
     inMemoryStatementsRepository = new InMemoryStatementsRepository();
     inMemoryUsersRepository = new InMemoryUsersRepository();
-    createStatementUseCase = new CreateStatementUseCase(
+    getStatementOperationUseCase = new GetStatementOperationUseCase(
       inMemoryUsersRepository,
       inMemoryStatementsRepository
     );
   });
 
-  it("should be able to create a new statement", async () => {
+  it("should be able list statement by id", async () => {
     const user = await inMemoryUsersRepository.create({
       name: "Teste Statement",
       email: "test@statement.com",
       password: "Test"
-    })
+    });
 
-    const statement = await createStatementUseCase.execute({
+    const { id } = await inMemoryStatementsRepository.create({
       user_id: !user.id ? "" : user.id,
       description: "Statement description Test",
       amount: 400,
       type: "deposit" as OperationType,
     });
 
+    const statement = await getStatementOperationUseCase.execute({
+      statement_id: !id ? "" : id,
+      user_id: !user.id ? "" : user.id
+    });
+
     expect(statement).toHaveProperty("id");
   });
 
-  it("should not be able to create a new withdraw with insufficient funds", async () => {
+  it("should not be able list statement with invalid id", async () => {
     expect(async () => {
       const user = await inMemoryUsersRepository.create({
         name: "Teste Statement",
         email: "test@statement.com",
         password: "Test"
-      })
+      });
 
-      await createStatementUseCase.execute({
-        user_id: !user.id ? "" : user.id,
-        description: "Statement description Test",
-        amount: 500,
-        type: "withdraw" as OperationType,
+      await getStatementOperationUseCase.execute({
+        statement_id: "statement-now-existent",
+        user_id: !user.id ? "" : user.id
       });
     }).rejects.toBeInstanceOf(AppError);
   });
 
-  it("should not be able to create a new statement to a now-existent user", async () => {
+  it("should not be able list statement to a now-existent user", async () => {
     expect(async () => {
-      await createStatementUseCase.execute({
+      await getStatementOperationUseCase.execute({
         user_id: "user-now-existent",
-        description: "Statement description Test",
-        amount: 500,
-        type: "deposit" as OperationType,
+        statement_id: "123456"
       });
     }).rejects.toBeInstanceOf(AppError);
   });
